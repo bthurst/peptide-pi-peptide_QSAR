@@ -10,6 +10,44 @@ sns.set(rc={'axes.labelsize':50, 'font.size':35, 'font.family':'serif', 'text.us
 sns.set_style('whitegrid')
 
 
+
+modparms = {'df2': [['MATS3c', 'MATS1c_aaWing'], ['MATS3c', 'ATSC4e_aaWing'], ['SpMax6_Bhs', 'piPC3'], ['AVP-5', 'piPC3']], 'df3': [['piPC3'], ['maxHBint10'], ['GATS2i']]}  # Descriptors to fit to training data. modparms[value] will give the model used to predict that value. Each list is a different model to average over. Each sublist is its own model. As written: fit df2 using MATS3c and MATS1c_aawing, and fit df2 using MATS3c and ATSC4e_aaWing, and fit df2 using SpMax6_Bhs and piPC3, and fit df2 using AVP-5 and piPC3. Average over each of these four separate fits to obtain the predicted df2 value. The names listed in these models must match the feature names in descsFnm.
+predChems = []  # Chemistries to predict. If predAll is true, this will be replaced. If predAll is false and this is blank, it will default to all chemistries in the feature list.
+selChems = ['dssw-pdi', 'dwcg-pdi', 'dyga-pdi', 'dygg-pdi', 'dwyw-ndi', 'dnww-pdi', 'dtct-ndi', 'davg-pdi', 'dmmp-pdi', 'dwww-ndi', 'daia-pdi']  # Chemistries to print to screen. 
+
+trainAaList = ['a', 'f', 'g', 'i', 'v']
+nonPolAaList = ['g', 'a', 'v', 'l', 'm', 'i', 'f', 'w', 'd', 'e']  # d and e are included as nonpolar since they will be fully protonated at low pH
+nonPosAaList = ['g', 'a', 'v', 'l', 'm', 'i', 'f', 'w', 'd', 'e', 's', 't', 'c', 'p', 'n', 'q']  # all aas that aren't formally charged at low pH.
+allAaList = ['g', 'a', 'v', 'l', 'm', 'i', 'f', 'w', 'd', 'e', 's', 't', 'c', 'p', 'n', 'q', 'k', 'h', 'r']  # all aas
+cores = ['ndi', 'pdi']
+
+predAll = True # If true, predChems will be replaced with all possible chemistries matching dxxx-pi, depending on following options
+trainAas = True # If true and predAll is true, only chemistries entirely comprised of trainAaList will be predicted
+nonpolAas = True # If true and predAll is true and trainAas is false, all chemistries entirely comprised of nonpolar amino acids will be predicted
+wingMin = 3  # If predAll == True, this will give the wing sizes to be considered; eg. dxxx would be size 3, while dxx would be 2.
+wingMax = 3
+aalist = nonPolAaList  # If predChems is not set, or if predAll is True, the peptide chemistries that will be utilized are all possible combinations of dxxx-pi where each x is an amino acid from aalist (eg. if aalist = ['a'] and cores = ['ndi', 'pdi'] then only 'daaa-ndi' and 'daaa-pdi' would be looked at. If 'f' was also included so aalist = ['a', 'f'], then daaf, dafa, dfaa, daff, dfaf, dffa, and dfff would also be looked at.)
+
+pltscatter = True  # Plot a scatter plot of predictions
+figname = 'dfScatter'  # Save that scatter plot with this base filename (will save both a .png and a .pdf)
+xlims = [-40, 0]  # Limits for x on scatter plot
+ylims = [-40, 0]  # Limits for y on scatter plot
+
+trainAlignFnm = 'align.csv'  # Filename containing alignments
+trainDataFnm = 'ergs.csv'  # Filename containing free energies
+descsFnm = 'features_cut.csv'  # Filename containing descriptors
+
+savepreds = True  # Save the predictions for all chemistries in predChems to a saveCsv
+saveCsv = 'predictions.csv'
+savekeys = ['df2_pred', 'df3_pred', 'align_pred', 'align_prederr', 'align_predSamp', 'align_predSamperr']  # df2_pred is the predicted dimerization free energy, df3_pred is the predicted trimerization free energy, align_pred is the alignment predicted directly from df2_pred and df3_pred, align_predSamp is the alignment predicted from random sampling of df2_pred and df3_pred using df2err and df3err
+
+samplePreds = True  # Use random sampling of free energies to obtain mean and error estimates for alignments.
+df2err = 3.0  # Estimated error in predicted value of df2. 3.0 +/- 1.3 (test rmse over 15 train test splits of this model)
+df3err = 3.9  # Estimated error in predicted value of df3. 3.9 +/- 1.6 (test rmse  "")
+alSamps = 10000  # Number of different samples of free energy to make to obtain mean sampled estimates and error estimates in aligments
+topn = 50  # Print the best topn chemistries
+
+
 def calcmod(desclist, data):
     '''
     desclist is a list of dfs of descriptors to serve to predict data. Each element will be fit separately and the resulting models will be returned.
@@ -66,42 +104,6 @@ def gauss(xy, amp=1, mux=0, muy=0, a=.1):
 
 
 if __name__ == '__main__':
-    modparms = {'df2': [['MATS3c', 'MATS1c_aaWing'], ['MATS3c', 'ATSC4e_aaWing'], ['SpMax6_Bhs', 'piPC3'], ['AVP-5', 'piPC3']], 'df3': [['piPC3'], ['maxHBint10'], ['GATS2i']]}  # Descriptors to fit to training data. modparms[value] will give the model used to predict that value. Each list is a different model to average over. Each sublist is its own model. As written: fit df2 using MATS3c and MATS1c_aawing, and fit df2 using MATS3c and ATSC4e_aaWing, and fit df2 using SpMax6_Bhs and piPC3, and fit df2 using AVP-5 and piPC3. Average over each of these four separate fits to obtain the predicted df2 value. The names listed in these models must match the feature names in descsFnm.
-    predChems = []  # Chemistries to predict. If predAll is true, this will be replaced. If predAll is false and this is blank, it will default to all chemistries in the feature list.
-    selChems = ['dssw-pdi', 'dwcg-pdi', 'dyga-pdi', 'dygg-pdi', 'dwyw-ndi', 'dnww-pdi', 'dtct-ndi', 'davg-pdi', 'dmmp-pdi', 'dwww-ndi', 'daia-pdi']  # Chemistries to print to screen. 
-
-    trainAaList = ['a', 'f', 'g', 'i', 'v']
-    nonPolAaList = ['g', 'a', 'v', 'l', 'm', 'i', 'f', 'w', 'd', 'e']  # d and e are included as nonpolar since they will be fully protonated at low pH
-    nonPosAaList = ['g', 'a', 'v', 'l', 'm', 'i', 'f', 'w', 'd', 'e', 's', 't', 'c', 'p', 'n', 'q']  # all aas that aren't formally charged at low pH.
-    allAaList = ['g', 'a', 'v', 'l', 'm', 'i', 'f', 'w', 'd', 'e', 's', 't', 'c', 'p', 'n', 'q', 'k', 'h', 'r']  # all aas
-    cores = ['ndi', 'pdi']
-
-    predAll = True # If true, predChems will be replaced with all possible chemistries matching dxxx-pi, depending on following options
-    trainAas = True # If true and predAll is true, only chemistries entirely comprised of trainAaList will be predicted
-    nonpolAas = True # If true and predAll is true and trainAas is false, all chemistries entirely comprised of nonpolar amino acids will be predicted
-    wingMin = 3  # If predAll == True, this will give the wing sizes to be considered; eg. dxxx would be size 3, while dxx would be 2.
-    wingMax = 3
-    aalist = nonPolAaList  # If predChems is not set, or if predAll is True, the peptide chemistries that will be utilized are all possible combinations of dxxx-pi where each x is an amino acid from aalist (eg. if aalist = ['a'] and cores = ['ndi', 'pdi'] then only 'daaa-ndi' and 'daaa-pdi' would be looked at. If 'f' was also included so aalist = ['a', 'f'], then daaf, dafa, dfaa, daff, dfaf, dffa, and dfff would also be looked at.)
-
-    pltscatter = True  # Plot a scatter plot of predictions
-    figname = 'dfScatter'  # Save that scatter plot with this base filename (will save both a .png and a .pdf)
-    xlims = [-40, 0]  # Limits for x on scatter plot
-    ylims = [-40, 0]  # Limits for y on scatter plot
-
-    trainAlignFnm = 'align.csv'  # Filename containing alignments
-    trainDataFnm = 'ergs.csv'  # Filename containing free energies
-    descsFnm = 'features_cut.csv'  # Filename containing descriptors
-
-    savepreds = True  # Save the predictions for all chemistries in predChems to a saveCsv
-    saveCsv = 'predictions.csv'
-    savekeys = ['df2_pred', 'df3_pred', 'align_pred', 'align_prederr', 'align_predSamp', 'align_predSamperr']  # df2_pred is the predicted dimerization free energy, df3_pred is the predicted trimerization free energy, align_pred is the alignment predicted directly from df2_pred and df3_pred, align_predSamp is the alignment predicted from random sampling of df2_pred and df3_pred using df2err and df3err
-
-    samplePreds = True  # Use random sampling of free energies to obtain mean and error estimates for alignments.
-    df2err = 3.0  # Estimated error in predicted value of df2. 3.0 +/- 1.3 (test rmse over 15 train test splits of this model)
-    df3err = 3.9  # Estimated error in predicted value of df3. 3.9 +/- 1.6 (test rmse  "")
-    alSamps = 10000  # Number of different samples of free energy to make to obtain mean sampled estimates and error estimates in aligments
-    topn = 50  # Print the best topn chemistries
-
     # Make list of chemistries to predict free energies and alignments for.
     if predAll:
         if trainAas:
